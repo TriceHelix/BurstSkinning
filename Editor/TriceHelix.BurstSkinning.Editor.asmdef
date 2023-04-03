@@ -2,12 +2,12 @@
     "name": "TriceHelix.BurstSkinning.Editor",
     "rootNamespace": "TriceHelix.BurstSkinning.Editor",
     "references": [
-        "GUID:6d644ddfc8c7a7841accd6e3670faafa"
+        "GUID:6024dbcca0541544c822e5f92cade5ba"
     ],
-    "includePlatforms": [],
-    "excludePlatforms": [
+    "includePlatforms": [
         "Editor"
     ],
+    "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],

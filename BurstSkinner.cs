@@ -22,7 +22,6 @@ namespace TriceHelix.BurstSkinning
                 | MeshUpdateFlags.DontResetBoneBounds
                 | MeshUpdateFlags.DontNotifyMeshUsers;
 
-
         #region INSPECTOR
         [SerializeField, Tooltip("Original mesh in bindpose (T-Pose)")]
         private Mesh sharedMesh = null;
@@ -39,7 +38,6 @@ namespace TriceHelix.BurstSkinning
         [SerializeField, Tooltip("Update vertices and mesh bounds even when the renderer is invisible?")]
         private bool alwaysUpdate = false;
         #endregion
-
 
         // INTERNAL DATA
         private MeshFilter mf = null;
@@ -65,12 +63,11 @@ namespace TriceHelix.BurstSkinning
         private bool isScheduled = false;
         private JobHandle skinningHandle = default;
         private NativeArray<float4x4> currentBoneMatrices = default;
-        private NativeHashSet<int> excludeVAttributesDuringCopy = default;
+        private NativeParallelHashSet<int> excludeVAttributesDuringCopy = default;
 #if UNITY_EDITOR
         private Mesh previousSharedMesh = null;
         private Transform previousRootBone = null;
 #endif
-
 
         #region API
         /// <summary>
@@ -195,7 +192,7 @@ namespace TriceHelix.BurstSkinning
             outputMD.SetVertexBufferParams(sharedMesh.vertexCount, outputVertexAttributes);
             outputMD.SetIndexBufferParams(outputIndexCount, sharedMesh.indexFormat);
 
-            excludeVAttributesDuringCopy = new NativeHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
+            excludeVAttributesDuringCopy = new NativeParallelHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
             if (enableNormalSkinning) excludeVAttributesDuringCopy.Add(UnsafeUtility.EnumToInt(VertexAttribute.Normal));
 
             // update bone transforms
@@ -242,7 +239,6 @@ namespace TriceHelix.BurstSkinning
             excludeVAttributesDuringCopy.Dispose();
         }
         #endregion
-
 
         #region INTERNAL
         private void Awake()
@@ -541,7 +537,7 @@ namespace TriceHelix.BurstSkinning
         [BurstCompile]
         private struct CopyVertexDataJob : IJob
         {
-            [ReadOnly] public NativeHashSet<int> excludeAttributes;
+            [ReadOnly] public NativeParallelHashSet<int> excludeAttributes;
             [ReadOnly] public Mesh.MeshData source;
             public Mesh.MeshData target;
 
@@ -623,7 +619,8 @@ namespace TriceHelix.BurstSkinning
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
         {
-            
+            // TODO:
+            // some sort of preview like for SkinnedMeshRenderer
         }
 #endif // UNITY_EDITOR
     }
