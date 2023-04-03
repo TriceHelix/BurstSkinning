@@ -63,7 +63,7 @@ namespace TriceHelix.BurstSkinning
         private bool isScheduled = false;
         private JobHandle skinningHandle = default;
         private NativeArray<float4x4> currentBoneMatrices = default;
-        private NativeParallelHashSet<int> excludeVAttributesDuringCopy = default;
+        private NativeHashSet<int> excludeVAttributesDuringCopy = default;
 #if UNITY_EDITOR
         private Mesh previousSharedMesh = null;
         private Transform previousRootBone = null;
@@ -192,7 +192,7 @@ namespace TriceHelix.BurstSkinning
             outputMD.SetVertexBufferParams(sharedMesh.vertexCount, outputVertexAttributes);
             outputMD.SetIndexBufferParams(outputIndexCount, sharedMesh.indexFormat);
 
-            excludeVAttributesDuringCopy = new NativeParallelHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
+            excludeVAttributesDuringCopy = new NativeHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
             if (enableNormalSkinning) excludeVAttributesDuringCopy.Add(UnsafeUtility.EnumToInt(VertexAttribute.Normal));
 
             // update bone transforms
@@ -204,7 +204,7 @@ namespace TriceHelix.BurstSkinning
             {
                 source = inputMDA[0],
                 target = outputMD,
-                excludeAttributes = excludeVAttributesDuringCopy
+                excludeAttributes = excludeVAttributesDuringCopy.AsReadOnly()
             };
             JobHandle jhCopy = jCopy.ScheduleByRef(dependency);
             skinningHandle = JobHandle.CombineDependencies(BurstSkinningUtility.Skin(this, dependency), jhCopy);
@@ -537,7 +537,7 @@ namespace TriceHelix.BurstSkinning
         [BurstCompile]
         private struct CopyVertexDataJob : IJob
         {
-            [ReadOnly] public NativeParallelHashSet<int> excludeAttributes;
+            [ReadOnly] public NativeHashSet<int>.ReadOnly excludeAttributes;
             [ReadOnly] public Mesh.MeshData source;
             public Mesh.MeshData target;
 
