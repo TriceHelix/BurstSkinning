@@ -27,7 +27,7 @@ namespace TriceHelix.BurstSkinning
         public static JobHandle Skin(IBurstSkinnable target, JobHandle dependency = default)
         {
             if (target == null)
-                return default;
+                return dependency;
 
             // collect shared input data
             SkinningMethod method = target.GetSkinningMethod();
