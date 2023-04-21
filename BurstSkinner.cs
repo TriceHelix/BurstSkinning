@@ -13,6 +13,7 @@ using TriceHelix.BurstSkinning.Core;
 
 namespace TriceHelix.BurstSkinning
 {
+    [AddComponentMenu("Mesh/Burst Skinner")]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer)), DisallowMultipleComponent]
     public unsafe class BurstSkinner : MonoBehaviour, IBurstSkinnable
     {
