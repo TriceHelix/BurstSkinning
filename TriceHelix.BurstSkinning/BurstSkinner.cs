@@ -163,57 +163,36 @@ namespace TriceHelix.BurstSkinning
 
 
         /// <summary>
-        /// Schedule a skinning operation (should be force completed within 4 frames)
+        /// Schedule a skinning operation (should be force completed within 4 frames in compliance with Unity's <see cref="Allocator.TempJob"/> allocator)
         /// </summary>
         public void ScheduleSkinning(JobHandle dependency = default)
         {
             if (isScheduled)
             {
-                Debug.LogWarning("Skinning was already scheduled!");
+#if UNITY_ASSERTIONS
+                string message = $"Skinning was already scheduled! ({this})";
+                if (isActiveAndEnabled) message += "\nThis component is enabled. Skinning was likely automatically scheduled during MonoBehaviour.Update()" +
+                        "- disable this component to manage skinning manually.";
+                Debug.LogWarning(message);
+#endif // UNITY_ASSERTIONS
+
                 return;
             }
 
 #if UNITY_ASSERTIONS
-            if (mf == null) throw new NullReferenceException($"A MeshFilter component is required on this GameObject! ({this})");
-            if (mr == null) throw new NullReferenceException($"A MeshRenderer component is required on this GameObject! ({this})");
-            if (outputMesh == null) throw new NullReferenceException($"The output mesh is missing! ({this})");
-            if (rootBone == null || boneTransforms.Length <= 0) throw new NullReferenceException($"Root bone and/or skeleton is missing! ({this})");
-            if (rootBone.parent == null) throw new NullReferenceException($"Root bone cannot be at the top of the scene hierarchy! ({this})");
+            if (mf == null) { Debug.LogError($"A MeshFilter component is required on this GameObject! ({this})"); return; }
+            if (mr == null) { Debug.LogError($"A MeshRenderer component is required on this GameObject! ({this})"); return; };
+            if (outputMesh == null) { Debug.LogError($"The output mesh is missing! ({this})"); return; };
+            if (rootBone == null || boneTransforms.Length <= 0) { Debug.LogError($"Root bone and/or skeleton is missing! ({this})"); return; };
+            if (rootBone.parent == null) { Debug.LogError($"Root bone cannot be at the top of the scene hierarchy! ({this})"); return; };
 #endif // UNITY_ASSERTIONS
 
-            isScheduled = true;
-
-            // complete setup
-            vertexDistanceCalcHandle.Complete();
-            vertexDistanceCalcHandle = default;
-
-            // allocate writable mesh data
-            outputMDA = Mesh.AllocateWritableMeshData(1);
-            Mesh.MeshData outputMD = outputMDA[0];
-            outputMD.SetVertexBufferParams(sharedMesh.vertexCount, outputVertexAttributes);
-            outputMD.SetIndexBufferParams(outputIndexCount, sharedMesh.indexFormat);
-
-            excludeVAttributesDuringCopy = new NativeHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
-            if (enableNormalSkinning) excludeVAttributesDuringCopy.Add(UnsafeUtility.EnumToInt(VertexAttribute.Normal));
-
-            // update bone transforms
-            for (int i = 0; i < currentBoneMatrices.Length; i++)
-                currentBoneMatrices[i] = (float4x4)boneTransforms[i].localToWorldMatrix;
-
-            // create and schedule jobs
-            var jCopy = new CopyVertexDataJob()
-            {
-                source = inputMDA[0],
-                target = outputMD,
-                excludeAttributes = excludeVAttributesDuringCopy.AsReadOnly()
-            };
-            JobHandle jhCopy = jCopy.ScheduleByRef(dependency);
-            skinningHandle = JobHandle.CombineDependencies(BurstSkinningUtility.Skin(this, dependency), jhCopy);
+            ScheduleSkinning_Internal(dependency);
         }
 
 
         /// <summary>
-        /// Complete any scheduled skinning operation
+        /// Complete any scheduled skinning operation. This method does not throw errors when there is nothing to complete.
         /// </summary>
         public void CompleteSkinning()
         {
@@ -224,6 +203,7 @@ namespace TriceHelix.BurstSkinning
 
             // complete job
             skinningHandle.Complete();
+            skinningHandle = default;
 
             // set submesh
             Mesh.MeshData outputMD = outputMDA[0];
@@ -279,14 +259,11 @@ namespace TriceHelix.BurstSkinning
                 previousSharedMesh = sharedMesh;
                 previousRootBone = rootBone;
             }
-#endif
-
-            if (mf == null || mr == null || outputMesh == null || boneTransforms.Length <= 0 || rootBone == null)
-                return;
+#endif // UNITY_EDITOR
 
             if (alwaysUpdate || mr.isVisible)
             {
-                ScheduleSkinning();
+                ScheduleSkinning_Internal(default); // no job dependency
             }
         }
 
@@ -299,7 +276,7 @@ namespace TriceHelix.BurstSkinning
 
         private void OnDestroy()
         {
-            // prevent memory leaks by making sure no skinning is happening
+            // prevent memory leaks by making sure no asyn operations are running
             vertexDistanceCalcHandle.Complete();
             CompleteSkinning();
 
@@ -309,6 +286,48 @@ namespace TriceHelix.BurstSkinning
             if (currentBoneMatrices.IsCreated) currentBoneMatrices.Dispose();
             if (weightsPerVertexScan.IsCreated) weightsPerVertexScan.Dispose();
             if (initialVertexDistances.IsCreated) initialVertexDistances.Dispose();
+        }
+
+
+        private void ScheduleSkinning_Internal(JobHandle dependency)
+        {
+            // last fail-safe in release builds
+            if (isScheduled
+             || mf == null
+             || mr == null
+             || outputMesh == null
+             || boneTransforms.Length <= 0
+             || rootBone == null)
+                return;
+
+            isScheduled = true;
+
+            // complete setup
+            vertexDistanceCalcHandle.Complete();
+            vertexDistanceCalcHandle = default;
+
+            // allocate writable mesh data
+            outputMDA = Mesh.AllocateWritableMeshData(1);
+            Mesh.MeshData outputMD = outputMDA[0];
+            outputMD.SetVertexBufferParams(sharedMesh.vertexCount, outputVertexAttributes);
+            outputMD.SetIndexBufferParams(outputIndexCount, sharedMesh.indexFormat);
+
+            excludeVAttributesDuringCopy = new NativeHashSet<int>(2, Allocator.TempJob) { UnsafeUtility.EnumToInt(VertexAttribute.Position) };
+            if (enableNormalSkinning) excludeVAttributesDuringCopy.Add(UnsafeUtility.EnumToInt(VertexAttribute.Normal));
+
+            // update bone transforms
+            for (int i = 0; i < currentBoneMatrices.Length; i++)
+                currentBoneMatrices[i] = (float4x4)boneTransforms[i].localToWorldMatrix;
+
+            // create and schedule jobs
+            var jCopy = new CopyVertexDataJob()
+            {
+                source = inputMDA[0],
+                target = outputMD,
+                excludeAttributes = excludeVAttributesDuringCopy.AsReadOnly()
+            };
+            JobHandle jhCopy = jCopy.ScheduleByRef(dependency);
+            skinningHandle = JobHandle.CombineDependencies(BurstSkinningUtility.Skin(this, dependency), jhCopy);
         }
 
 
@@ -386,67 +405,7 @@ namespace TriceHelix.BurstSkinning
                 return;
             }
 
-            Stack<Transform> boneStack = new(256);
-            Stack<int> childIndexStack = new(256);
-            List<Transform> foundBones = new(256);
-            boneStack.Push(rootBone.GetChild(0)); // true root is child of root bone
-            childIndexStack.Push(0);
-
-            // flatten bone hierarchy
-            while (boneStack.TryPeek(out Transform b))
-            {
-                int cid = childIndexStack.Pop();
-
-                if (cid == 0)
-                    foundBones.Add(b);
-
-                if (cid < b.childCount)
-                {
-                    // down
-                    boneStack.Push(b.GetChild(cid));
-                    childIndexStack.Push(cid + 1);
-                    childIndexStack.Push(0);
-                }
-                else
-                {
-                    // up
-                    boneStack.Pop();
-                }
-            }
-
-            if (foundBones.Count < inputBindposes.Length)
-            {
-                Debug.LogError("Could not match every bindpose of the mesh to a bone!\nPlease ensure the root bone is set correctly and the mesh is properly rigged.");
-                boneTransforms = Array.Empty<Transform>();
-                return;
-            }
-
-            // filter out excess bones
-            int specIdx = 0;
-            var rootTF = transform.worldToLocalMatrix;
-            var realBindpositions = inputBindposes.Select(bp => bp.inverse.MultiplyPoint3x4(Vector3.zero)).ToArray();
-            var specBindpositions = foundBones.Select(t => (rootTF * t.localToWorldMatrix).MultiplyPoint3x4(Vector3.zero)).ToArray();
-            List<Transform> finalBones = new(foundBones.Count);
-            for (int i = 0; i < realBindpositions.Length; i++)
-            {
-                // find the closest matching transform down the hierarchy
-                float delta = float.MaxValue;
-                float prevDelta;
-                for (int j = specIdx; j < specBindpositions.Length; j++)
-                {
-                    prevDelta = delta;
-                    delta = (specBindpositions[j] - realBindpositions[i]).magnitude;
-                    if (delta >= prevDelta)
-                    {
-                        specIdx = j - 1;
-                        break;
-                    }
-                }
-
-                finalBones.Add(foundBones[specIdx++]);
-            }
-
-            boneTransforms = finalBones.ToArray();
+            boneTransforms = BurstSkinningUtility.ExtractRig(transform, rootBone, inputBindposes);
         }
 
 
