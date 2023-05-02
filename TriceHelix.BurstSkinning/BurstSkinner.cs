@@ -276,7 +276,7 @@ namespace TriceHelix.BurstSkinning
 
         private void OnDestroy()
         {
-            // prevent memory leaks by making sure no asyn operations are running
+            // prevent memory leaks by making sure no async operations are running
             vertexDistanceCalcHandle.Complete();
             CompleteSkinning();
 
