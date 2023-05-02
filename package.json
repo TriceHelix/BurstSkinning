@@ -10,7 +10,7 @@
     "licensesUrl": "https://github.com/TriceHelix/BurstSkinning/blob/master/LICENSE.txt",
     "dependencies": {
       "com.unity.burst": "1.8.0",
-      "com.unity.collections": "2.1.0"
+      "com.unity.collections": "2.1.1"
    },
    "keywords": [
       "burst",
