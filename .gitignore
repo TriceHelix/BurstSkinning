@@ -2,3 +2,5 @@
 *.tmp
 *.pdb
 *.obj
+
+*/Doxyfile

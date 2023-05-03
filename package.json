@@ -1,16 +1,17 @@
 {
     "name": "com.tricehelix.burstskinning",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "displayName": "Burst Skinning",
     "description": "Fast Mesh Skinning on the CPU using Linear Blend (LBS) and Dual Quaternion (DQS) utilizing the Unity Jobs system and Burst compilation",
     "unity": "2022.2",
-    "documentationUrl": "https://github.com/TriceHelix/BurstSkinning",
-    "changelogUrl": "https://github.com/TriceHelix/BurstSkinning",
+    "documentationUrl": "https://github.com/TriceHelix/BurstSkinning/wiki",
+    "changelogUrl": "https://github.com/TriceHelix/BurstSkinning/commits/master",
     "license": "LICENSE.txt",
     "licensesUrl": "https://github.com/TriceHelix/BurstSkinning/blob/master/LICENSE.txt",
     "dependencies": {
       "com.unity.burst": "1.8.0",
-      "com.unity.collections": "2.1.1"
+      "com.unity.collections": "2.1.1",
+      "com.unity.mathematics": "1.2.0"
    },
    "keywords": [
       "burst",
