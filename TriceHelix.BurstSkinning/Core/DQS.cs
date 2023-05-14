@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using Unity.Burst;
+using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -70,7 +71,7 @@ namespace TriceHelix.BurstSkinning.Core
         {
             // bone weights
             int numWeights = weightsPerVertex[index];
-            if (numWeights == 0) return;
+            if (Hint.Unlikely(numWeights == 0)) return;
             BoneWeight1* ptr_weights = stackalloc BoneWeight1[numWeights];
             UnsafeUtility.MemCpy(ptr_weights, (BoneWeight1*)boneWeights.GetUnsafeReadOnlyPtr() + weightsPerVertexScan[index], numWeights * sizeof(BoneWeight1));
 
