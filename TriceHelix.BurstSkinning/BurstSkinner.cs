@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Unity.Burst;
-using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
@@ -530,7 +529,7 @@ namespace TriceHelix.BurstSkinning
                     int destOffset = target.GetVertexAttributeOffset(attr);
                     int destSize = SizeofVertexAttributeFormat(target.GetVertexAttributeFormat(attr)) * target.GetVertexAttributeDimension(attr);
 
-                    if (Hint.Unlikely(srcSize != destSize))
+                    if (srcSize != destSize)
                         throw new Exception($"Incompatible source/target vertex formats in {nameof(CopyVertexDataJob)}");
 
                     // exclusively copy single attribute
